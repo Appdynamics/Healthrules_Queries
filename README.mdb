@@ -1,0 +1,7 @@
+# Healthrules_Queries
+#
+# Maintainer: David Ryder, David.Ryder@AppDynamics.com
+#
+# Fetches, Loads, rewrites AppDynamics Health Rules and Analytics Search Queries from a rules file
+# Allows one to many rules to be created from a base template against a rules file
+# Automatic creation of Analytics Search Queries from
