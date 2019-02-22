@@ -2,6 +2,8 @@
 #
 #
 # Authentication and Access
+# Required environment variables
+#
 export APPD_USER_NAME="david.ryder"
 export APPD_PWD="<user password>"
 export APPD_ACCOUNT="customer1"
@@ -15,4 +17,4 @@ export APPD_API_CLIENT_NAME="david.ryder"
 #export APPD_TEMP_ACCESS_TOKEN=".................."
 export APPD_TEMP_ACCESS_TOKEN=""
 export APPD_APPLICATION_NAME="<AppDynamics Application Name>"
-export APPD_CONFIG_DIR="/Users/david.ryder/Documents/Projects/<AppName>"
+export APPD_CONFIG_DIR="/Users/david.ryder/Documents/Projects/<Project Name>"

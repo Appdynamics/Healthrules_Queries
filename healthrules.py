@@ -1,7 +1,7 @@
 #
 # Maintainer: David Ryder, David.Ryder@AppDynamics.com
 #
-# Fetches, Loads, rewrites AppDynamics Health Rules and Analytics Search Queries
+# Fetches, Loads, rewrites AppDynamics Health Rules and Analytics Search Queries from a rules file
 # Allows one to many rules to be created from a base template against a rules file
 # Automatic creation of Analytics Search Queries from
 #
@@ -54,7 +54,7 @@ class APPD():
             #print( "Environment variable missing: {0}".format(e) )
             raise Exception( "Environment variable missing: {0}".format(e) )
 
-    def autheticateOauth(self):
+    def authenticateOauth(self):
         s = requests.session()
         r = s.post(self.httpURL("/api/oauth/access_token"),
                                 auth=("{0}@{1}".format(self.auth['APPD_USER_NAME'], self.auth['APPD_ACCOUNT']), "{0}".format( self.auth['APPD_PWD'] ) ),
@@ -69,7 +69,7 @@ class APPD():
             self.auth.update({'access_token': r.json()['access_token'], 'expires_in': r.json()['expires_in'], 'session': s})
             self.auth['session'].headers.update(self.httpHeaders())
 
-    def autheticateBasic(self):
+    def authenticateBasic(self):
         self.auth.update( { 'session': requests.Session() } )
         r = self.auth['session'].get(self.httpURL("/controller/auth?action=login"),
                                      auth=("{0}@{1}".format(self.auth['APPD_USER_NAME'],
@@ -475,7 +475,7 @@ if cmd == "oauth":
     #self.auth'schemaName'] = sys.argv[2]
     a1 = APPD()
     a1.configure()
-    a1.autheticateOauth()
+    a1.authenticateOauth()
     a1.print()
     a1.getAllAppIDs()
     a1.printAppIDs()
@@ -484,7 +484,7 @@ elif cmd == "bauth":
     #self.auth'schemaName'] = sys.argv[2]
     a1 = APPD()
     a1.configure()
-    a1.autheticateBasic()
+    a1.authenticateBasic()
     a1.print()
     a1.getAllAppIDs()
     a1.printAppIDs()
@@ -493,7 +493,7 @@ elif cmd == "getAnalyticsMetrics":
     # Save Analytics Search Query
     a1 = APPD()
     a1.configure()
-    a1.autheticateBasic()
+    a1.authenticateBasic()
     a1.getAnalyticsMetrics()
 
 elif cmd == "deleteAnalyticsMetric":
@@ -501,7 +501,7 @@ elif cmd == "deleteAnalyticsMetric":
     name = sys.argv[2]
     a1 = APPD()
     a1.configure()
-    a1.autheticateBasic()
+    a1.authenticateBasic()
     a1.getAnalyticsMetrics()
     a1.deleteAnalyticsMetric(name)
 
@@ -512,7 +512,7 @@ elif cmd == "createAnalyticsMetric":
     query = sys.argv[4]
     a1 = APPD()
     a1.configure()
-    a1.autheticateBasic()
+    a1.authenticateBasic()
     #a1.print()
     #a1.saveAnalyticsQuery(name, description, "SELECT count(*) FROM transactions" )
     a1.createAnalyticsMetric(name, description, query )
@@ -523,7 +523,7 @@ elif cmd == "createAnalyticsMetricsFromFile":
     appName = sys.argv[3]
     a1 = APPD()
     a1.configure()
-    a1.autheticateBasic()
+    a1.authenticateBasic()
     #a1.print()
     a1.getAnalyticsMetrics()
     a1.createAnalyticsMetricsFromFile(analyticsMetricConfigFile, appName)
@@ -532,7 +532,7 @@ elif cmd == "getBTs":
     appName = sys.argv[2]
     a1 = APPD()
     a1.configure()
-    a1.autheticateOauth()
+    a1.authenticateOauth()
     a1.getAllAppIDs()
     a1.printAppIDs()
     a1.createConfigDir()
@@ -544,7 +544,7 @@ elif cmd == "getHR":
     hrName = sys.argv[3]
     a1 = APPD()
     a1.configure()
-    a1.autheticateOauth()
+    a1.authenticateOauth()
     a1.getAllAppIDs()
     a1.printAppIDs()
     appId = a1.getAppId(appName)
@@ -573,7 +573,7 @@ elif cmd == "getAllHr":
     appName = sys.argv[2]
     a1 = APPD()
     a1.configure()
-    a1.autheticateOauth()
+    a1.authenticateOauth()
     a1.getAllAppIDs()
     a1.printAppIDs()
     a1.createConfigDir()
@@ -584,7 +584,7 @@ elif cmd == "loadAllHrFromDir":
     appName = sys.argv[2]
     a1 = APPD()
     a1.configure()
-    a1.autheticateOauth()
+    a1.authenticateOauth()
     a1.getAllAppIDs()
     a1.loadFromRulesDir( appName, overWrite=True )
 
@@ -594,7 +594,7 @@ elif cmd == "createHealthRules":
     templateHrName = sys.argv[4]
     a1 = APPD()
     a1.configure()
-    a1.autheticateOauth()
+    a1.authenticateOauth()
     a1.getAllAppIDs()
     a1.createHealthRules(rulesFile, appName, templateHrName)
 
@@ -604,7 +604,7 @@ elif cmd == "loadHrFromRulesFile":
     appName = sys.argv[3]
     a1 = APPD()
     a1.configure()
-    a1.autheticateOauth()
+    a1.authenticateOauth()
     a1.getAllAppIDs()
     a1.loadHRFromRulesFile(rulesFile, appName)
 
@@ -613,7 +613,7 @@ elif cmd == "loadHr":
     hrName = sys.argv[3]
     a1 = APPD()
     a1.configure()
-    a1.autheticateOauth()
+    a1.authenticateOauth()
     a1.getAllAppIDs()
     a1.printAppIDs()
     a1.createConfigDir()
@@ -622,5 +622,7 @@ elif cmd == "loadHr":
 else:
     print( "Commands: getAllHr,rewriteHr, rewriteHr")
     print( "python3 healthrules.py rewriteHr <rules.csv> <App Name> <base-hr-template>")
-    print( "python3 healthrules.py , <rules.csv> <App Name>")
+    print( "python3 healthrules.py <rules.csv> <App Name>")
     print( "python3 healthrules.py getAllHr <App Name>" )
+    print( "python3 healthrules.py createAnalyticsMetricsFromFile <analytics metrics file> analyticsApplication")
+    print( "python3 healthrules.py loadHrFromRulesFile <analytis-hr-file> analyticsApplication")
