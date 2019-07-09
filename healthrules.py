@@ -28,7 +28,7 @@ class APPD():
         print( self.auth )
 
     def httpURL(self, path):
-        return "{0}://{1}:{2}{3}".format(self.auth['HTTP_PROTOCOL'],self.auth['APPD_CONTROLLER_HOST'], self.auth['APPD_CONTROLLER_PORT'], path)
+        return "{0}://{1}:{2}{3}".format(self.auth['HTTP_PROTOCOL'],self.auth['APPDYNAMICS_CONTROLLER_HOST_NAME'], self.auth['APPDYNAMICS_CONTROLLER_PORT'], path)
 
     def httpHeaders(self):
         return { "Authorization": "Bearer " + self.auth['access_token'] }
@@ -44,12 +44,13 @@ class APPD():
 
     def configure(self):
         # configure from ennvars
-        requiredEnvvars = [ "APPD_USER_NAME", "APPD_ACCOUNT", "APPD_PWD", "APPD_API_CLIENT_NAME",
-                            "APPD_API_CLIENT_SECRET", "APPD_CONTROLLER_HOST", "APPD_CONTROLLER_PORT",
-                            "HTTP_PROTOCOL", "APPD_CONFIG_DIR" ]
+        requiredEnvvars = [ "APPD_CONTROLLER_ADMIN", "APPDYNAMICS_AGENT_ACCOUNT_NAME", "APPD_UNIVERSAL_PWD", "APPD_API_CLIENT_NAME",
+                            "APPD_API_CLIENT_SECRET", "APPDYNAMICS_CONTROLLER_HOST_NAME", "APPDYNAMICS_CONTROLLER_PORT",
+                            "APPDYNAMICS_CONTROLLER_SSL_ENABLED", "APPD_CONFIG_DIR" ]
         try:
             self.auth = { v: os.environ[ v ] for v in requiredEnvvars }
-            self.auth.update( {'access_token': "", 'expires_in': "", 'session': "" } )
+            self.auth.update( {'access_token': "", 'expires_in': "", 'session': "",
+                               'HTTP_PROTOCOL': 'HTTPS' if self.auth['APPDYNAMICS_CONTROLLER_SSL_ENABLED'].lower() == 'true' else 'HTTP' } )
         except Exception as e:
             #print( "Environment variable missing: {0}".format(e) )
             raise Exception( "Environment variable missing: {0}".format(e) )
@@ -57,13 +58,13 @@ class APPD():
     def authenticateOauth(self):
         s = requests.session()
         r = s.post(self.httpURL("/api/oauth/access_token"),
-                                auth=("{0}@{1}".format(self.auth['APPD_USER_NAME'], self.auth['APPD_ACCOUNT']), "{0}".format( self.auth['APPD_PWD'] ) ),
+                                auth=("{0}@{1}".format(self.auth['APPD_CONTROLLER_ADMIN'], self.auth['APPDYNAMICS_AGENT_ACCOUNT_NAME']), "{0}".format( self.auth['APPD_UNIVERSAL_PWD'] ) ),
                                 headers={"Content-Type": "application/vnd.appd.cntrl+protobuf;v=1" },
                                 data={"grant_type": "client_credentials",
-                                      "client_id": self.auth['APPD_API_CLIENT_NAME']+"@"+self.auth['APPD_ACCOUNT'],
+                                      "client_id": self.auth['APPD_API_CLIENT_NAME']+"@"+self.auth['APPDYNAMICS_AGENT_ACCOUNT_NAME'],
                                       "client_secret": self.auth['APPD_API_CLIENT_SECRET'] } )
-        if r.status_code != 200:
-            print("Authentication error: status_code: {0}, {1}".format(r.status_code,r.text ))
+        if r.status_code != requests.codes.ok:
+            print("Authentication error: status_code: {0}, [{1}]".format(r.status_code, r.text ))
             raise Exception( "Authentication error: status_code: {0}".format(r.status_code) )
         else:
             self.auth.update({'access_token': r.json()['access_token'], 'expires_in': r.json()['expires_in'], 'session': s})
@@ -72,8 +73,8 @@ class APPD():
     def authenticateBasic(self):
         self.auth.update( { 'session': requests.Session() } )
         r = self.auth['session'].get(self.httpURL("/controller/auth?action=login"),
-                                     auth=("{0}@{1}".format(self.auth['APPD_USER_NAME'],
-                                     self.auth['APPD_ACCOUNT']), "{0}".format( self.auth['APPD_PWD'] )))
+                                     auth=("{0}@{1}".format(self.auth['APPD_CONTROLLER_ADMIN'],
+                                     self.auth['APPDYNAMICS_AGENT_ACCOUNT_NAME']), "{0}".format( self.auth['APPD_UNIVERSAL_PWD'] )))
         if r.status_code != 200:
             print("Authentication error: status_code: {0}, {1}".format(r.status_code,r.text ))
             raise Exception( "Authentication error: status_code: {0}".format(r.status_code) )
@@ -133,6 +134,19 @@ class APPD():
     def putHealthRule(self, appId, healthRuleXML):
         r = self.auth['session'].post(self.httpURL("/controller/healthrules/{0}".format(appId)),
                 headers=self.httpHeaders(), files={ "file": healthRuleXML } )
+        print( r.text )
+        if r.status_code != 200:
+            print("Error ", r.status_code)
+            print( r.text )
+
+    def testHealthRule(self, appId):
+        # http://drydersys5apps-drydertest1-hrta3wjj.srv.ravcloud.com:8090/controller/restui/healthRules/getHealthRuleCurrentEvaluationStatus/app/5/healthRuleID
+        # http://drydersys5apps-drydertest1-hrta3wjj.srv.ravcloud.com:8090/controller/restui/healthRules/getHealthRuleCurrentEvaluationStatus/app/5/healthRuleID/107
+        # http://drydersys5apps-drydertest1-hrta3wjj.srv.ravcloud.com:8090/controller/restui/healthRules/getHealthRuleEvaluationEvents
+        # http://drydersys5apps-drydertest1-hrta3wjj.srv.ravcloud.com:8090/controller/restui/healthRules/delete
+
+        r = self.auth['session'].get(self.httpURL("/controller/restui/healthrules/getHealthRuleCurrentEvaluationStatus/app/{0}/healthRuleID/".format(appId)),
+                headers=self.httpHeaders() )
         print( r.text )
         if r.status_code != 200:
             print("Error ", r.status_code)
@@ -380,8 +394,6 @@ class APPD():
                 fn = os.path.join(self.auth["APPD_CONFIG_DIR"], appName, "healthrules", hrName + ".xml")
                 self.loadHealthRuleFromFile(appName, fn, overWrite)
 
-
-
     def getAllBusinessTransactions(self, appName):
         # /controller/rest/applications/5/business-transactions
         appId = self.getAppId( appName )
@@ -551,6 +563,21 @@ elif cmd == "getHR":
     hr1 = a1.getHealthRule(appId, hrName)
     t = xmlet.fromstring( hr1 )
     print( "HR NAME ", t.find('.//health-rule/name').text)
+    hrXML = xmlet.tostring(t, encoding='us-ascii', method='xml')
+    print( "HR ID ", hrXML.decode() )
+
+elif cmd == "testHR":
+    appName = sys.argv[2]
+    hrName = sys.argv[3]
+    a1 = APPD()
+    a1.configure()
+    #a1.authenticateOauth()
+    a1.authenticateBasic()
+    a1.getAllAppIDs()
+    a1.printAppIDs()
+    appId = a1.getAppId(appName)
+    hr1 = a1.testHealthRule(appId)
+
 
 elif cmd == "hrStruct":
     appName = sys.argv[2]
