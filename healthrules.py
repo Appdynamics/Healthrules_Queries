@@ -52,8 +52,23 @@ class APPD():
             self.auth.update( {'access_token': "", 'expires_in': "", 'session': "",
                                'HTTP_PROTOCOL': 'HTTPS' if self.auth['APPDYNAMICS_CONTROLLER_SSL_ENABLED'].lower() == 'true' else 'HTTP' } )
         except Exception as e:
-            #print( "Environment variable missing: {0}".format(e) )
+            print( "Environment variable missing: {0}".format(e) )
+            sys.exit()
             raise Exception( "Environment variable missing: {0}".format(e) )
+
+    def configureBasic(self):
+        # configure from ennvars
+        print( "Configure Basic" )
+        requiredEnvvars = [ "APPD_CONTROLLER_ADMIN", "APPD_UNIVERSAL_PWD", "APPDYNAMICS_CONTROLLER_HOST_NAME", "APPDYNAMICS_CONTROLLER_PORT",
+                            "APPDYNAMICS_CONTROLLER_SSL_ENABLED", "APPDYNAMICS_AGENT_ACCOUNT_NAME" ]
+        try:
+            self.auth = { v: os.environ[ v ] for v in requiredEnvvars }
+            self.auth.update( {'access_token': "", 'expires_in': "", 'session': "",
+                               'HTTP_PROTOCOL': 'HTTPS' if self.auth['APPDYNAMICS_CONTROLLER_SSL_ENABLED'].lower() == 'true' else 'HTTP' } )
+        except Exception as e:
+            print( "Environment variable missing: {0}".format(e) )
+            sys.exit()
+            #raise Exception( "Environment variable missing: {0}".format(e) )
 
     def authenticateOauth(self):
         s = requests.session()
@@ -479,6 +494,11 @@ class APPD():
                 else:
                     print( "Ignoring {0}".format(queryName))
 
+    def getAccountInfo(self):
+        r = self.auth['session'].get(self.httpURL("/controller/restui/user/account?output=json"),
+                                 cookies=self.auth['session'].cookies,
+                                 headers=self.auth['session'].headers)
+        return json.loads(r.text)
 
 cmd = sys.argv[1] if len(sys.argv) > 1 else "unknown command"
 
@@ -500,6 +520,17 @@ elif cmd == "bauth":
     a1.print()
     a1.getAllAppIDs()
     a1.printAppIDs()
+
+elif cmd == "account":
+     a1 = APPD()
+     a1.configureBasic()
+     a1.authenticateBasic()
+     j = a1.getAccountInfo()
+     print( j.keys() )
+     print( "Access Key: ", j["account"]["accessKey"])
+     print( "Account Name: ", j["account"]["name"])
+     print( "Global Account Name: ", j["account"]["globalAccountName"])
+     print( "Controller URL: ", j["account"]["controllerURL"])
 
 elif cmd == "getAnalyticsMetrics":
     # Save Analytics Search Query
