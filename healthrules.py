@@ -183,6 +183,10 @@ class APPD():
         hr2.insert(1,hr1)
         return hr2
 
+
+    def getHealthRulesNew(self, appName):
+        appId = self.getAppId( appName )
+
     def getAllHealhRules(self, appName):
         appId = self.getAppId( appName )
         if appId > 0:
@@ -581,6 +585,16 @@ elif cmd == "getBTs":
     a1.createConfigDir()
     a1.getAllBusinessTransactions(appName)
 
+elif cmd == "getHR-new":
+    # Use the new Health Rule API
+    # https://docs.appdynamics.com/display/PRO45/Health+Rule+API
+    appName = sys.argv[2]
+    hrName = sys.argv[3]
+    a1 = APPD()
+    a1.configure()
+    a1.authenticateBasic()
+    hr1 = a1.getHealthRulesNew(appId)
+    print( hr )
 
 elif cmd == "getHR":
     appName = sys.argv[2]
