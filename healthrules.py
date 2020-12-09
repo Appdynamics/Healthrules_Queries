@@ -566,7 +566,9 @@ class APPD():
             print("Authentication error ", r.status_code)
         else:
             print( r.status_code )
-            print( r.text )
+            j = json.loads( r.text )
+            for i in j['permissions']:
+                print( i )
 
     def createNewRole(self, roleName, newRoleName, applicationId=0):
         r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/roles/name/{roleName}?include-permissions=true".format(roleName=roleName)),
@@ -642,6 +644,15 @@ elif cmd == "account":
      print( "Account Name: ", j["account"]["name"])
      print( "Global Account Name: ", j["account"]["globalAccountName"])
      print( "Controller URL: ", j["account"]["controllerURL"])
+
+elif cmd == "getAppId":
+    applicationName = sys.argv[2]
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    a1.getAllAppIDs()
+    appId = a1.getAppId( applicationName )
+    print( "Application {} ID {}".format(applicationName, appId ))
 
 elif cmd == "getAllRoles":
     a1 = APPD()
