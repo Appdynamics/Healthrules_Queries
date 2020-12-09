@@ -140,6 +140,9 @@ class APPD():
             raise Exception( "Unknown application {0}".format(appName) )
         return appId
 
+    def getAppIdList(self, appNameList):
+        return [ self.getAppId( i ) for i in appNameList ]
+
     def getHealthRule(self, appId, healthRuleName):
         r = self.auth['session'].get(self.httpURL("/controller/healthrules/{0}?name={1}".format(appId, healthRuleName)), headers=self.httpHeaders())
         if r.status_code != 200:
@@ -567,6 +570,7 @@ class APPD():
         else:
             print( r.status_code )
             j = json.loads( r.text )
+            print( j )
             for i in j['permissions']:
                 print( i )
 
@@ -602,6 +606,23 @@ class APPD():
                 data=json.JSONEncoder().encode( j )  )
             print( r.status_code )
             print( r.text )
+
+    def createNewRoleMulti(self, newRoleName, applicationNamesList=[]):
+        actionslist = [ 'CONFIG_AGENT_PROPERTIES', 'CONFIG_BACKEND_DETECTION', 'VIEW' ] # Permisisons to add to each Application
+        j = {}
+        j['name'] = newRoleName
+        j['permissions'] = [] # Empty permisisons list
+        for appId in self.getAppIdList( applicationNamesList ):
+            for action in actionslist:
+                j['permissions'].append( { 'entityType': 'APPLICATION', 'entityId': appId, 'action': action } )
+        print( j )
+        #exit()
+        self.auth['session'].headers['Content-Type'] = "application/vnd.appd.cntrl+json;v=1"
+        r = self.auth['session'].post(self.httpURL("/controller/api/rbac/v1/roles"),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers,
+            data=json.JSONEncoder().encode( j )  )
+        print( r.status_code )
+        print( r.text )
 
     def deleteRole(self, roleName):
         roleId = self.getRoleId( roleName )
@@ -676,6 +697,14 @@ elif cmd == "createNewRole":
     a1.configureBasic()
     a1.authenticateBasic()
     a1.createNewRole(roleName, newRoleName)
+
+elif cmd == "createNewRoleMulti":
+    newRoleName = sys.argv[2]
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    a1.getAllAppIDs()
+    a1.createNewRoleMulti(newRoleName, [ 'DRYDER_APP_1', 'DRYDER_APP_2' ] )
 
 elif cmd == "createNewRoleApply":
     roleName = sys.argv[2]
