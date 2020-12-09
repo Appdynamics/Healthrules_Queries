@@ -607,13 +607,12 @@ class APPD():
             print( r.status_code )
             print( r.text )
 
-    def createNewRoleMulti(self, newRoleName, applicationNamesList=[]):
-        actionslist = [ 'CONFIG_AGENT_PROPERTIES', 'CONFIG_BACKEND_DETECTION', 'VIEW' ] # Permisisons to add to each Application
+    def createNewRoleMulti(self, newRoleName, applicationNamesList=[], actionList=[]):
         j = {}
         j['name'] = newRoleName
         j['permissions'] = [] # Empty permisisons list
         for appId in self.getAppIdList( applicationNamesList ):
-            for action in actionslist:
+            for action in actionList:
                 j['permissions'].append( { 'entityType': 'APPLICATION', 'entityId': appId, 'action': action } )
         print( j )
         #exit()
@@ -700,11 +699,13 @@ elif cmd == "createNewRole":
 
 elif cmd == "createNewRoleMulti":
     newRoleName = sys.argv[2]
+    applicationNamesList = [ 'DRYDER_APP_1', 'DRYDER_APP_2' ] # List of Apps to add to the Role
+    actionsList = [ 'CONFIG_AGENT_PROPERTIES', 'CONFIG_BACKEND_DETECTION', 'VIEW' ] # Permisisons to add to each Application
     a1 = APPD()
     a1.configureBasic()
     a1.authenticateBasic()
     a1.getAllAppIDs()
-    a1.createNewRoleMulti(newRoleName, [ 'DRYDER_APP_1', 'DRYDER_APP_2' ] )
+    a1.createNewRoleMulti(newRoleName, applicationNamesList, actionsList)
 
 elif cmd == "createNewRoleApply":
     roleName = sys.argv[2]
