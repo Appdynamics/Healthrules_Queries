@@ -432,6 +432,25 @@ class APPD():
                     for i in j:
                         cw.writerow( [ i['name'], i['tierName'] ] )
 
+    def getTransactionSnapshots(self, appName):
+        # /controller/rest/applications/5/business-transactions
+        appId = self.getAppId( appName )
+        if appId > 0:
+            r = self.auth['session'].get(self.httpURL("/controller/rest/applications/{0}/request-snapshots?output=json".format(appId)), headers=self.httpHeaders())
+            if r.status_code != 200:
+                print("Authentication error ", r.status_code)
+            else:
+                j = json.loads( r.text )
+                j = sorted(j, key=lambda k: k['name'], reverse=False)
+                f1 = os.path.join(self.auth["APPD_CONFIG_DIR"], appName, "snapshots", "bt.csv" )
+                print( "Writing to {0}".format( f1 ))
+                with open(f1, mode='w') as cf1:
+                    headers = ['Name', 'Tier']
+                    cw = csv.writer(cf1, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                    cw.writerow(headers)
+                    for i in j:
+                        cw.writerow( [ i['name'], i['tierName'] ] )
+
     def analyticsMakeQuery(self, name, description, queryString):
         return {"name": str(uuid.uuid1()), # Time based UUUID
                 "searchName": name, "adqlQueries":[queryString],"searchDescription": description,
@@ -504,6 +523,61 @@ class APPD():
                                  headers=self.auth['session'].headers)
         return json.loads(r.text)
 
+    def getDatabaseCollectors(self):
+        r = self.auth['session'].get(self.httpURL("/controller/rest/databases/collectors"),
+                                 cookies=self.auth['session'].cookies,
+                                 headers=self.auth['session'].headers)
+        print( r.status_code )
+        print( r.text )
+
+    def createDatabaseCollector(self, collector):
+        r = self.auth['session'].post(self.httpURL("/controller/rest/databases/create"),
+                                 cookies=self.auth['session'].cookies,
+                                 headers=self.auth['session'].headers,
+                                 data=json.JSONEncoder().encode( collector ) )
+        print( r.status_code )
+        print( r.text )
+
+    def getAllRoles(self):
+        r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/roles"),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
+        if r.status_code != 200:
+            print("Authentication error ", r.status_code)
+        else:
+            print( r.status_code )
+            print( r.text )
+
+    def getRolePermissions(self, roleName):
+        r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/roles/name/{roleName}?include-permissions=true".format(roleName=roleName)),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
+        if r.status_code != 200:
+            print("Authentication error ", r.status_code)
+        else:
+            print( r.status_code )
+            print( r.text )
+
+    def createNewRole(self, roleName, newRoleName):
+        r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/roles/name/{roleName}?include-permissions=true".format(roleName=roleName)),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
+        if r.status_code != 200:
+            print("Authentication error ", r.status_code)
+        else:
+            j = json.loads( r.text )
+            print( "Existing Role: {} New Role".format(j['name'],newRoleName ))
+
+            # Remove id fields
+            j.pop( 'id' ) # Remove id
+            tmp1 = [ i.pop('id') for i in j['permissions'] ]
+
+            j['name'] = newRoleName
+            print(self.auth['session'].headers )
+            self.auth['session'].headers['Content-Type'] = "application/vnd.appd.cntrl+json;v=1"
+            r = self.auth['session'].post(self.httpURL("/controller/api/rbac/v1/roles"),
+                cookies=self.auth['session'].cookies, headers=self.auth['session'].headers,
+                data=json.JSONEncoder().encode( j )  )
+            print( r.status_code )
+            print( r.text )
+
 cmd = sys.argv[1] if len(sys.argv) > 1 else "unknown command"
 
 
@@ -535,6 +609,49 @@ elif cmd == "account":
      print( "Account Name: ", j["account"]["name"])
      print( "Global Account Name: ", j["account"]["globalAccountName"])
      print( "Controller URL: ", j["account"]["controllerURL"])
+
+elif cmd == "getAllRoles":
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    a1.getAllRoles()
+
+elif cmd == "getRolePermissions":
+    roleName = sys.argv[2]
+    print( roleName )
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    a1.getRolePermissions(roleName)
+
+elif cmd == "createNewRole":
+    roleName = sys.argv[2]
+    newRoleName = sys.argv[3]
+    print( roleName )
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    a1.createNewRole(roleName, newRoleName)
+
+elif cmd == "getDatabaseCollectors":
+    # Save Analytics Search Query
+    a1 = APPD()
+    a1.configure()
+    a1.authenticateBasic()
+    a1.getDatabaseCollectors()
+
+elif cmd == "createDatabaseCollectors":
+    # Save Analytics Search Query
+    c1 = '{"id":null,"version":0,"name":"DDR_TEST_100","nameUnique":true,"builtIn":false,"createdBy":null,"createdOn":1603551627000,"modifiedBy":null,"modifiedOn":1603551627000,"type":"MYSQL","hostname":"localhost","useWindowsAuth":false,"username":"root","password":"appdynamics_redacted_password","port":3306,"loggingEnabled":false,"enabled":true,"excludedSchemas":null,"jdbcConnectionProperties":[],"databaseName":"","failoverPartner":null,"connectAsSysdba":false,"useServiceName":false,"sid":"","customConnectionString":null,"enterpriseDB":false,"useSSL":false,"enableOSMonitor":false,"hostOS":null,"useLocalWMI":false,"hostDomain":null,"hostUsername":null,"hostPassword":null,"dbInstanceIdentifier":null,"region":null,"certificateAuth":false,"removeLiterals":false,"sshPort":0,"agentName":"JRS-Local-MySQL","dbCyberArkEnabled":false,"dbCyberArkApplication":null,"dbCyberArkSafe":null,"dbCyberArkFolder":null,"dbCyberArkObject":null,"hwCyberArkEnabled":false,"hwCyberArkApplication":null,"hwCyberArkSafe":null,"hwCyberArkFolder":null,"hwCyberArkObject":null,"orapkiSslEnabled":false,"orasslClientAuthEnabled":false,"orasslTruststoreLoc":null,"orasslTruststoreType":null,"orasslTruststorePassword":null,"orasslKeystoreLoc":null,"orasslKeystoreType":null,"orasslKeystorePassword":null,"ldapEnabled":false,"customMetrics":null,"subConfigs":[],"jmxPort":0,"backendIds":[],"extraProperties":[]},"licensesUsed":1}'
+
+    c2 = '{ "type":"MYSQL","name":"localdocker_dbagent-MySQLCollector", "hostname":"mysql", "port":"3306", "username":"root", "password":"appdynamics_redacted_password", "enabled":true, "excludedSchemas":null, "databaseName":null, "failoverPartner":null, "connectAsSysdba":false, "useServiceName":false, "sid":null, "customConnectionString":null, "enterpriseDB":false, "useSSL":false, "enableOSMonitor":false, "hostOS":null, "useLocalWMI":false, "hostDomain":null, "hostUsername":null, "hostPassword":"", "dbInstanceIdentifier":null, "region":null, "certificateAuth":false, "removeLiterals":true, "sshPort":0, "agentName":"localdocker_dbagent", "dbCyberArkEnabled":false, "dbCyberArkApplication":null, "dbCyberArkSafe":null, "dbCyberArkFolder":null, "dbCyberArkObject":null, "hwCyberArkEnabled":false, "hwCyberArkApplication":null, "hwCyberArkSafe":null, "hwCyberArkFolder":null, "hwCyberArkObject":null, "orapkiSslEnabled":false, "orasslClientAuthEnabled":false, "orasslTruststoreLoc":null, "orasslTruststoreType":null, "orasslTruststorePassword":"", "orasslKeystoreLoc":null, "orasslKeystoreType":null, "orasslKeystorePassword":"", "ldapEnabled":false, "customMetrics":null, "subConfigs":[ { "type":"MYSQL", "name":"localdocker_dbagent-MySQLCollector sub-collector", "hostname":"mysql-remote", "port":"3388", "username":"root", "password":"different-password", "enabled":true, "excludedSchemas":null, "databaseName":null, "failoverPartner":null, "connectAsSysdba":false, "useServiceName":false, "sid":null, "customConnectionString":null, "enterpriseDB":false, "useSSL":false, "enableOSMonitor":false, "hostOS":null, "useLocalWMI":false, "hostDomain":null, "hostUsername":null, "hostPassword":"", "dbInstanceIdentifier":null, "region":null, "certificateAuth":false, "removeLiterals":true, "sshPort":0, "agentName":"localdocker_dbagent", "dbCyberArkEnabled":false, "dbCyberArkApplication":null, "dbCyberArkSafe":null, "dbCyberArkFolder":null, "dbCyberArkObject":null, "hwCyberArkEnabled":false, "hwCyberArkApplication":null, "hwCyberArkSafe":null, "hwCyberArkFolder":null, "hwCyberArkObject":null, "orapkiSslEnabled":false, "orasslClientAuthEnabled":false, "orasslTruststoreLoc":null, "orasslTruststoreType":null, "orasslTruststorePassword":"", "orasslKeystoreLoc":null, "orasslKeystoreType":null, "orasslKeystorePassword":"", "ldapEnabled":false, "customMetrics":null } ] }'
+    print(c2)
+
+    c3 = '{ "type":"MYSQL", "name":"DDR_TEST_MYSQL_100", "hostname":"achilles", "port":"3306", "username":"admin", "password":"foo", "agentName":"Default Database Agent" }'
+    a1 = APPD()
+    a1.configure()
+    a1.authenticateBasic()
+    a1.createDatabaseCollector( c3 )
 
 elif cmd == "getAnalyticsMetrics":
     # Save Analytics Search Query
