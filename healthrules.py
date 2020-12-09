@@ -568,7 +568,7 @@ class APPD():
             print( r.status_code )
             print( r.text )
 
-    def createNewRole(self, roleName, newRoleName):
+    def createNewRole(self, roleName, newRoleName, applicationId=0):
         r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/roles/name/{roleName}?include-permissions=true".format(roleName=roleName)),
             cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
         if r.status_code != 200:
@@ -583,9 +583,17 @@ class APPD():
 
             # Update the Role Name
             j['name'] = newRoleName
+            #for i in j['permissions']:
+            #    print( i )
+            # Update the Applicaiton id - using the 'entityId' field to reflect the application to apply this role to
+            if applicationId > 0:
+                # Update entityType = APPLICATION
+                tmp1 = [ i.update( { 'entityId': applicationId } ) for i in j['permissions'] if i['entityType'] == "APPLICATION" ]
 
-            # Update the Applicaiton id
-            print(self.auth['session'].headers )
+            print("Updated")
+            #for i in j['permissions']:
+            #    print( i )
+            #print(self.auth['session'].headers )
             self.auth['session'].headers['Content-Type'] = "application/vnd.appd.cntrl+json;v=1"
             r = self.auth['session'].post(self.httpURL("/controller/api/rbac/v1/roles"),
                 cookies=self.auth['session'].cookies, headers=self.auth['session'].headers,
@@ -657,6 +665,19 @@ elif cmd == "createNewRole":
     a1.configureBasic()
     a1.authenticateBasic()
     a1.createNewRole(roleName, newRoleName)
+
+elif cmd == "createNewRoleApply":
+    roleName = sys.argv[2]
+    newRoleName = sys.argv[3]
+    applicationName = sys.argv[4]
+    print( roleName )
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    a1.getAllAppIDs()
+    appId = a1.getAppId( applicationName )
+    print( appId )
+    a1.createNewRole(roleName, newRoleName, appId)
 
 elif cmd == "deleteRole":
     roleName = sys.argv[2]
