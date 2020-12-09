@@ -547,6 +547,18 @@ class APPD():
             print( r.status_code )
             print( r.text )
 
+    def getRoleId(self, roleName):
+        roleId = -1
+        r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/roles/name/{roleName}".format(roleName=roleName)),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
+        if r.status_code != 200:
+            print("Authentication error ", r.status_code)
+        else:
+            print( r.status_code )
+            print( r.text )
+        j = json.loads( r.text )
+        return j['id']
+
     def getRolePermissions(self, roleName):
         r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/roles/name/{roleName}?include-permissions=true".format(roleName=roleName)),
             cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
@@ -569,12 +581,25 @@ class APPD():
             j.pop( 'id' ) # Remove id
             tmp1 = [ i.pop('id') for i in j['permissions'] ]
 
+            # Update the Role Name
             j['name'] = newRoleName
+
+            # Update the Applicaiton id
             print(self.auth['session'].headers )
             self.auth['session'].headers['Content-Type'] = "application/vnd.appd.cntrl+json;v=1"
             r = self.auth['session'].post(self.httpURL("/controller/api/rbac/v1/roles"),
                 cookies=self.auth['session'].cookies, headers=self.auth['session'].headers,
                 data=json.JSONEncoder().encode( j )  )
+            print( r.status_code )
+            print( r.text )
+
+    def deleteRole(self, roleName):
+        roleId = self.getRoleId( roleName )
+        r = self.auth['session'].delete(self.httpURL("/controller/api/rbac/v1/roles/{roleId}".format(roleId=roleId)),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
+        if r.status_code != 200:
+            print("Authentication error ", r.status_code)
+        else:
             print( r.status_code )
             print( r.text )
 
@@ -632,6 +657,13 @@ elif cmd == "createNewRole":
     a1.configureBasic()
     a1.authenticateBasic()
     a1.createNewRole(roleName, newRoleName)
+
+elif cmd == "deleteRole":
+    roleName = sys.argv[2]
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    a1.deleteRole(roleName)
 
 elif cmd == "getDatabaseCollectors":
     # Save Analytics Search Query
