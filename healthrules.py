@@ -574,6 +574,34 @@ class APPD():
             for i in j['permissions']:
                 print( i )
 
+    def getRole(self, roleName, withPermissions=False):
+        r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/roles/name/{roleName}{withPermissionsStr}".format(roleName=roleName, withPermissionsStr="?include-permissions=true" if withPermissions else "")),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
+        return json.loads( r.text )
+
+    def getRoleUsers(self, roleName, withPermissions=False):
+        r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/roles/name/{roleName}{withPermissionsStr}".format(roleName=roleName, withPermissionsStr="?include-users=true" if withPermissions else "")),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
+        return json.loads( r.text )
+
+    def getFullUserInformation(self, userId):
+        r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/users/{userId}".format(userId=userId)),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
+        return json.loads( r.text )
+
+    def getAllUsers(self, withFullInformation=False):
+        r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/users"),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
+        j = json.loads( r.text )
+        j = { 'users': [ i for i in j['users'] if i['id'] in [ 78, 112 ] ] } # dryder and david.ryder # For testing only]}
+        if withFullInformation:
+            userIdList = [ i['id'] for i in j['users'] ]
+            print( userIdList)
+            fullUserInfoList = [ self.getFullUserInformation(userId) for userId in userIdList ]
+            return fullUserInfoList
+        else:
+            return j
+
     def createNewRole(self, roleName, newRoleName, applicationId=0):
         r = self.auth['session'].get(self.httpURL("/controller/api/rbac/v1/roles/name/{roleName}?include-permissions=true".format(roleName=roleName)),
             cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
@@ -623,7 +651,70 @@ class APPD():
         print( r.status_code )
         print( r.text )
 
+    def createNewRoleExistingMulti(self, j, roleName, applicationNamesList=[], actionList=[]):
+        # Remove id fields
+        j.pop( 'id' ) # Remove id
+        [ i.pop('id') for i in j['permissions'] ]
+        j['name'] = roleName
+        # Update existing role j: replace or append actions to applications
+        # Does not check for duplicates
+        print( j )
+        for appId in self.getAppIdList( applicationNamesList ):
+            for action in actionList:
+                j['permissions'].append( { 'entityType': 'APPLICATION', 'entityId': appId, 'action': action } )
+        print( j )
+        #exit()
+        self.auth['session'].headers['Content-Type'] = "application/vnd.appd.cntrl+json;v=1"
+        r = self.auth['session'].post(self.httpURL("/controller/api/rbac/v1/roles"),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers,
+            data=json.JSONEncoder().encode( j )  )
+        print( r.status_code )
+        print( r.text )
+
+    def renameRole(self, roleName, newRoleName):
+        j = self.getRole(roleName, withPermissions=False)
+        j['name'] = newRoleName
+        j['description'] = "Renamed from {} to {}".format(roleName, j['name'])
+        self.auth['session'].headers['Content-Type'] = "application/vnd.appd.cntrl+json;v=1"
+        r = self.auth['session'].put(self.httpURL("/controller/api/rbac/v1/roles/{roleId}".format(roleId=j['id'])),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers, data=json.JSONEncoder().encode( j ))
+        print( r.status_code )
+        print( r.text )
+        return j['name']
+
+    def updateRoleMulti(self, roleName, applicationNamesList=[], actionList=[]):
+        # Append applicationNamesList to this role with actionList
+        j = self.getRole(roleName, withPermissions=True)
+        originalRoleName = j['name'] + "-v1"
+        newRoleName = "{}-{}".format( j['name'], datetime.datetime.now().strftime("%m%d%Y-%H%M%S"))
+        #self.renameRole( j['name'], newRoleName)
+        self.createNewRoleExistingMulti(j, originalRoleName, applicationNamesList, actionList)
+
+        #with open(roleName + "-role.txt", 'w') as f1:
+        #    f1.write( json.JSONEncoder().encode( j ) )
+        #roleId = j['id']
+        #j['name'] = "{}-{}".format( roleName, datetime.datetime.now().strftime("%m%d%Y-%H%M%S"))
+        #j['description'] = datetime.datetime.now().strftime("%m%d%Y-%H%M%S")
+        #self.auth['session'].headers['Content-Type'] = "application/vnd.appd.cntrl+json;v=1"
+        #r = self.auth['session'].put(self.httpURL("/controller/api/rbac/v1/roles/{roleId}".format(roleId=roleId)),
+        #    cookies=self.auth['session'].cookies, headers=self.auth['session'].headers, data=json.JSONEncoder().encode( j ))
+        #print( r.status_code )
+        #print( r.text )
+        exit()
+        for appId in self.getAppIdList( applicationNamesList ):
+            for action in actionList:
+                j['permissions'].append( { 'entityType': 'APPLICATION', 'entityId': appId, 'action': action } )
+        print( j )
+        exit()
+        self.auth['session'].headers['Content-Type'] = "application/vnd.appd.cntrl+json;v=1"
+        r = self.auth['session'].put(self.httpURL("/controller/api/rbac/v1/roles"),
+            cookies=self.auth['session'].cookies, headers=self.auth['session'].headers,
+            data=json.JSONEncoder().encode( j )  )
+        print( r.status_code )
+        print( r.text )
+
     def deleteRole(self, roleName):
+        # Cannot delete roles assigned to users
         roleId = self.getRoleId( roleName )
         r = self.auth['session'].delete(self.httpURL("/controller/api/rbac/v1/roles/{roleId}".format(roleId=roleId)),
             cookies=self.auth['session'].cookies, headers=self.auth['session'].headers)
@@ -680,13 +771,50 @@ elif cmd == "getAllRoles":
     a1.authenticateBasic()
     a1.getAllRoles()
 
-elif cmd == "getRolePermissions":
+elif cmd == "getRoles":
     roleName = sys.argv[2]
-    print( roleName )
     a1 = APPD()
     a1.configureBasic()
     a1.authenticateBasic()
-    a1.getRolePermissions(roleName)
+    a1.getAllRoles()
+
+elif cmd == "getRole":
+    roleName = sys.argv[2]
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    j = a1.getRole(roleName, withPermissions = False)
+    print( j )
+
+elif cmd == "getAllUsers":
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    j = a1.getAllUsers(withFullInformation=False)
+    print( j )
+
+elif cmd == "getAllUsersFull":
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    j = a1.getAllUsers(withFullInformation=True)
+    print( j )
+
+elif cmd == "getRoleUsers":
+    roleName = sys.argv[2]
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    j = a1.getRoleUsers(roleName, withPermissions = False)
+    print( j )
+
+elif cmd == "getRolePermissions":
+    roleName = sys.argv[2]
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    j = a1.getRole(roleName, withPermissions = True)
+    print( j )
 
 elif cmd == "createNewRole":
     roleName = sys.argv[2]
@@ -706,6 +834,16 @@ elif cmd == "createNewRoleMulti":
     a1.authenticateBasic()
     a1.getAllAppIDs()
     a1.createNewRoleMulti(newRoleName, applicationNamesList, actionsList)
+
+elif cmd == "updateRoleMulti":
+    roleName = sys.argv[2]
+    applicationNamesList = [ 'DRYDER_APP_3' ] # List of Apps to add to the Role
+    actionsList = [ 'CONFIG_AGENT_PROPERTIES', 'CONFIG_BACKEND_DETECTION', 'VIEW' ] # Permisisons to add to each Application
+    a1 = APPD()
+    a1.configureBasic()
+    a1.authenticateBasic()
+    a1.getAllAppIDs()
+    a1.updateRoleMulti(roleName, applicationNamesList, actionsList)
 
 elif cmd == "createNewRoleApply":
     roleName = sys.argv[2]
